@@ -21,9 +21,9 @@ namespace TriviaGame.Controllers
         }
 
         [HttpPost]
-        public SlackResponseDoc Post()
+        public SlackResponseDoc SlackSlashCommand([FromForm] SlackRequestDoc requestDoc)
         {
-            return _slackSlashCommandService.processSlashCommand();
+            return _slackSlashCommandService.processSlashCommand(requestDoc);
         }
     }
 }

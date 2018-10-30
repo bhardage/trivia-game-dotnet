@@ -8,7 +8,7 @@ namespace TriviaGame.Services
 {
     public class SlackSlashCommandService : ISlackSlashCommandService
     {
-        public SlackResponseDoc processSlashCommand()
+        public SlackResponseDoc processSlashCommand(SlackRequestDoc requestDoc)
         {
             const string command = "/game";
 
