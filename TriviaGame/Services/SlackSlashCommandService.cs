@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using TriviaGame.Models;
 
@@ -8,10 +9,139 @@ namespace TriviaGame.Services
 {
     public class SlackSlashCommandService : ISlackSlashCommandService
     {
+        private readonly ITriviaGameService _triviaGameService;
+
+        public SlackSlashCommandService(ITriviaGameService triviaGameService)
+        {
+            _triviaGameService = triviaGameService;
+        }
+
         public SlackResponseDoc processSlashCommand(SlackRequestDoc requestDoc)
         {
-            const string command = "/game";
+            //First thing, capture the timestamp
+            requestDoc.RequestTime = DateTime.Now;
 
+            string commandText = requestDoc.Text == null ? "" : requestDoc.Text.Trim();
+            string[] commandParts = Regex.Split(commandText, "\\s+");
+
+            string operatorText = null;
+
+            if (commandParts.Length >= 1)
+            {
+                operatorText = commandParts[0];
+                commandText = commandText.Substring(operatorText.Length).Trim();
+            }
+
+            switch (operatorText)
+            {
+                case "start":
+                    return _triviaGameService.start(requestDoc, String.IsNullOrEmpty(commandText) ? null : commandText);
+                case "stop":
+                    return _triviaGameService.stop(requestDoc);
+                case "join":
+                    return _triviaGameService.join(requestDoc);
+                case "pass":
+                    if (commandParts.Length < 2)
+                    {
+                        return getPassFormat(requestDoc.Command);
+                    }
+
+                    return _triviaGameService.pass(requestDoc, commandText);
+                case "question":
+                    if (commandParts.Length < 2)
+                    {
+                        return getSubmitQuestionFormat(requestDoc.Command);
+                    }
+
+                    return _triviaGameService.submitQuestion(requestDoc, commandText);
+                case "answer":
+                    if (commandParts.Length < 2)
+                    {
+                        return getSubmitAnswerFormat(requestDoc.Command);
+                    }
+
+                    return _triviaGameService.submitAnswer(requestDoc, commandText);
+                case "incorrect":
+                    if (commandParts.Length < 2)
+                    {
+                        return getMarkAnswerIncorrectFormat(requestDoc.Command);
+                    }
+
+                    return _triviaGameService.markAnswerIncorrect(requestDoc, commandText);
+                case "correct":
+                    if (commandParts.Length < 2)
+                    {
+                        return getMarkAnswerCorrectFormat(requestDoc.Command);
+                    }
+
+                    return _triviaGameService.markAnswerCorrect(
+                            requestDoc,
+                            commandParts[1],
+                            commandParts.Length > 2 ? commandText.Substring(commandParts[1].Length).Trim() : null
+                    );
+                case "status":
+                    return _triviaGameService.getStatus(requestDoc);
+                case "scores":
+                    return _triviaGameService.getScores(requestDoc);
+                case "reset":
+                    return _triviaGameService.resetScores(requestDoc);
+            }
+
+            return getUsageFormat(requestDoc.Command);
+        }
+
+        #region Usage formats
+        private SlackResponseDoc getPassFormat(string command)
+        {
+            return new SlackResponseDoc
+            {
+                ResponseType = SlackResponseType.EPHEMERAL,
+                Text = "To pass your turn, use `" + command + " pass <USERNAME>`.\n\nFor example, `" + command + " pass @jsmith`"
+            };
+        }
+
+        private SlackResponseDoc getSubmitQuestionFormat(string command)
+        {
+            return new SlackResponseDoc
+            {
+                ResponseType = SlackResponseType.EPHEMERAL,
+                Text = "To submit a question, use `" + command + " question <QUESTION_TEXT>`.\n\nFor example, `" + command + " question In what year did WWII officially begin?`"
+            };
+        }
+
+        private SlackResponseDoc getSubmitAnswerFormat(string command)
+        {
+            return new SlackResponseDoc
+            {
+                ResponseType = SlackResponseType.EPHEMERAL,
+                Text = "To submit an answer, use `" + command + " answer <ANSWER_TEXT>`.\n\nFor example, `" + command + " answer Blue skies`"
+            };
+        }
+
+        private SlackResponseDoc getMarkAnswerIncorrectFormat(string command)
+        {
+            return new SlackResponseDoc
+            {
+                ResponseType = SlackResponseType.EPHEMERAL,
+                Text = "To identify an answer as incorrect, use `" + command + " incorrect <USERNAME>`.\n" +
+                    //+ "Optional: To include the incorrect answer to which you're referring, use `" + command + " incorrect <USERNAME> <INCORRECT_ANSWER>`.\n\n" +
+                    "\nFor example, `" + command + " incorrect @jsmith`"
+            };
+        }
+
+        private SlackResponseDoc getMarkAnswerCorrectFormat(string command)
+        {
+            return new SlackResponseDoc
+            {
+                ResponseType = SlackResponseType.EPHEMERAL,
+                Text = "To mark an answer correct, use `" + command + " correct <USERNAME>`.\n" +
+                    "Optional: To include the correct answer, use `" + command + " correct <USERNAME> <CORRECT_ANSWER>`.\n\n" +
+                    "For example, `" + command + " correct @jsmith Chris Farley`"
+            };
+        }
+
+        private SlackResponseDoc getUsageFormat(string command)
+        {
             return new SlackResponseDoc
             {
                 ResponseType = SlackResponseType.EPHEMERAL,
@@ -34,5 +164,6 @@ namespace TriviaGame.Services
                 }
             };
         }
+        #endregion
     }
 }
