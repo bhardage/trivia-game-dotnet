@@ -31,13 +31,13 @@ namespace TriviaGameTests.Services
             };
             SlackResponseDoc responseDoc = new SlackResponseDoc();
 
-            triviaGameService.Setup(x => x.start(It.IsAny<SlackRequestDoc>(), It.IsAny<string>())).Returns(responseDoc);
+            triviaGameService.Setup(x => x.Start(It.IsAny<SlackRequestDoc>(), It.IsAny<string>())).Returns(responseDoc);
 
-            SlackResponseDoc result = cut.processSlashCommand(requestDoc);
+            SlackResponseDoc result = cut.ProcessSlashCommand(requestDoc);
 
             Assert.AreSame(responseDoc, result);
 
-            triviaGameService.Verify(x => x.start(requestDoc, null));
+            triviaGameService.Verify(x => x.Start(requestDoc, null));
         }
 
         [TestMethod]
@@ -49,13 +49,13 @@ namespace TriviaGameTests.Services
             };
             SlackResponseDoc responseDoc = new SlackResponseDoc();
 
-            triviaGameService.Setup(x => x.start(It.IsAny<SlackRequestDoc>(), It.IsAny<string>())).Returns(responseDoc);
+            triviaGameService.Setup(x => x.Start(It.IsAny<SlackRequestDoc>(), It.IsAny<string>())).Returns(responseDoc);
 
-            SlackResponseDoc result = cut.processSlashCommand(requestDoc);
+            SlackResponseDoc result = cut.ProcessSlashCommand(requestDoc);
 
             Assert.AreSame(responseDoc, result);
 
-            triviaGameService.Verify(x => x.start(requestDoc, "movie quotes"));
+            triviaGameService.Verify(x => x.Start(requestDoc, "movie quotes"));
         }
 
         [TestMethod]
@@ -67,13 +67,13 @@ namespace TriviaGameTests.Services
             };
             SlackResponseDoc responseDoc = new SlackResponseDoc();
 
-            triviaGameService.Setup(x => x.stop(It.IsAny<SlackRequestDoc>())).Returns(responseDoc);
+            triviaGameService.Setup(x => x.Stop(It.IsAny<SlackRequestDoc>())).Returns(responseDoc);
 
-            SlackResponseDoc result = cut.processSlashCommand(requestDoc);
+            SlackResponseDoc result = cut.ProcessSlashCommand(requestDoc);
 
             Assert.AreSame(responseDoc, result);
 
-            triviaGameService.Verify(x => x.stop(requestDoc));
+            triviaGameService.Verify(x => x.Stop(requestDoc));
         }
 
         [TestMethod]
@@ -85,7 +85,7 @@ namespace TriviaGameTests.Services
                 Text = "question"
             };
 
-            SlackResponseDoc result = cut.processSlashCommand(requestDoc);
+            SlackResponseDoc result = cut.ProcessSlashCommand(requestDoc);
 
             Assert.IsNotNull(result);
             Assert.AreEqual(SlackResponseType.EPHEMERAL, result.ResponseType);
@@ -104,13 +104,13 @@ namespace TriviaGameTests.Services
             };
             SlackResponseDoc responseDoc = new SlackResponseDoc();
 
-            triviaGameService.Setup(x => x.submitQuestion(It.IsAny<SlackRequestDoc>(), It.IsAny<string>())).Returns(responseDoc);
+            triviaGameService.Setup(x => x.SubmitQuestion(It.IsAny<SlackRequestDoc>(), It.IsAny<string>())).Returns(responseDoc);
 
-            SlackResponseDoc result = cut.processSlashCommand(requestDoc);
+            SlackResponseDoc result = cut.ProcessSlashCommand(requestDoc);
 
             Assert.AreSame(responseDoc, result);
 
-            triviaGameService.Verify(x => x.submitQuestion(requestDoc, "What    does ATM stand for?"));
+            triviaGameService.Verify(x => x.SubmitQuestion(requestDoc, "What    does ATM stand for?"));
         }
 
         [TestMethod]
@@ -122,7 +122,7 @@ namespace TriviaGameTests.Services
                 Text = "answer"
             };
         
-            SlackResponseDoc result = cut.processSlashCommand(requestDoc);
+            SlackResponseDoc result = cut.ProcessSlashCommand(requestDoc);
 
             Assert.IsNotNull(result);
             Assert.AreEqual(SlackResponseType.EPHEMERAL, result.ResponseType);
@@ -141,13 +141,13 @@ namespace TriviaGameTests.Services
             };
             SlackResponseDoc responseDoc = new SlackResponseDoc();
 
-            triviaGameService.Setup(x => x.submitAnswer(It.IsAny<SlackRequestDoc>(), It.IsAny<string>())).Returns(responseDoc);
+            triviaGameService.Setup(x => x.SubmitAnswer(It.IsAny<SlackRequestDoc>(), It.IsAny<string>())).Returns(responseDoc);
 
-            SlackResponseDoc result = cut.processSlashCommand(requestDoc);
+            SlackResponseDoc result = cut.ProcessSlashCommand(requestDoc);
 
             Assert.AreSame(responseDoc, result);
 
-            triviaGameService.Verify(x => x.submitAnswer(requestDoc, "I    do not    know"));
+            triviaGameService.Verify(x => x.SubmitAnswer(requestDoc, "I    do not    know"));
         }
 
         [TestMethod]
@@ -159,7 +159,7 @@ namespace TriviaGameTests.Services
                 Text = "correct"
             };
         
-            SlackResponseDoc result = cut.processSlashCommand(requestDoc);
+            SlackResponseDoc result = cut.ProcessSlashCommand(requestDoc);
 
             Assert.IsNotNull(result);
             Assert.AreEqual(SlackResponseType.EPHEMERAL, result.ResponseType);
@@ -183,13 +183,13 @@ namespace TriviaGameTests.Services
             };
             SlackResponseDoc responseDoc = new SlackResponseDoc();
 
-            triviaGameService.Setup(x => x.markAnswerCorrect(It.IsAny<SlackRequestDoc>(), It.IsAny<string>(), It.IsAny<string>())).Returns(responseDoc);
+            triviaGameService.Setup(x => x.MarkAnswerCorrect(It.IsAny<SlackRequestDoc>(), It.IsAny<string>(), It.IsAny<string>())).Returns(responseDoc);
 
-            SlackResponseDoc result = cut.processSlashCommand(requestDoc);
+            SlackResponseDoc result = cut.ProcessSlashCommand(requestDoc);
 
             Assert.AreSame(responseDoc, result);
 
-            triviaGameService.Verify(x => x.markAnswerCorrect(requestDoc, "<@12345>", null));
+            triviaGameService.Verify(x => x.MarkAnswerCorrect(requestDoc, "<@12345>", null));
         }
 
         [TestMethod]
@@ -201,13 +201,13 @@ namespace TriviaGameTests.Services
             };
             SlackResponseDoc responseDoc = new SlackResponseDoc();
 
-            triviaGameService.Setup(x => x.markAnswerCorrect(It.IsAny<SlackRequestDoc>(), It.IsAny<string>(), It.IsAny<string>())).Returns(responseDoc);
+            triviaGameService.Setup(x => x.MarkAnswerCorrect(It.IsAny<SlackRequestDoc>(), It.IsAny<string>(), It.IsAny<string>())).Returns(responseDoc);
 
-            SlackResponseDoc result = cut.processSlashCommand(requestDoc);
+            SlackResponseDoc result = cut.ProcessSlashCommand(requestDoc);
 
             Assert.AreSame(responseDoc, result);
 
-            triviaGameService.Verify(x => x.markAnswerCorrect(requestDoc, "<@12345>", "I    do not    know"));
+            triviaGameService.Verify(x => x.MarkAnswerCorrect(requestDoc, "<@12345>", "I    do not    know"));
         }
 
         [TestMethod]
@@ -219,13 +219,13 @@ namespace TriviaGameTests.Services
             };
             SlackResponseDoc responseDoc = new SlackResponseDoc();
 
-            triviaGameService.Setup(x => x.getScores(It.IsAny<SlackRequestDoc>())).Returns(responseDoc);
+            triviaGameService.Setup(x => x.GetScores(It.IsAny<SlackRequestDoc>())).Returns(responseDoc);
 
-            SlackResponseDoc result = cut.processSlashCommand(requestDoc);
+            SlackResponseDoc result = cut.ProcessSlashCommand(requestDoc);
 
             Assert.AreSame(responseDoc, result);
 
-            triviaGameService.Verify(x => x.getScores(requestDoc));
+            triviaGameService.Verify(x => x.GetScores(requestDoc));
         }
 
         [TestMethod]
@@ -237,13 +237,13 @@ namespace TriviaGameTests.Services
             };
             SlackResponseDoc responseDoc = new SlackResponseDoc();
 
-            triviaGameService.Setup(x => x.resetScores(It.IsAny<SlackRequestDoc>())).Returns(responseDoc);
+            triviaGameService.Setup(x => x.ResetScores(It.IsAny<SlackRequestDoc>())).Returns(responseDoc);
 
-            SlackResponseDoc result = cut.processSlashCommand(requestDoc);
+            SlackResponseDoc result = cut.ProcessSlashCommand(requestDoc);
 
             Assert.AreSame(responseDoc, result);
 
-            triviaGameService.Verify(x => x.resetScores(requestDoc));
+            triviaGameService.Verify(x => x.ResetScores(requestDoc));
         }
     }
 }

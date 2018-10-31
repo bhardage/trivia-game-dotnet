@@ -23,7 +23,7 @@ namespace TriviaGame.Controllers
         [HttpPost]
         public SlackResponseDoc SlackSlashCommand([FromForm] SlackRequestDoc requestDoc)
         {
-            return _slackSlashCommandService.processSlashCommand(requestDoc);
+            return _slackSlashCommandService.ProcessSlashCommand(requestDoc);
         }
     }
 }

@@ -16,7 +16,7 @@ namespace TriviaGame.Services
             _triviaGameService = triviaGameService;
         }
 
-        public SlackResponseDoc processSlashCommand(SlackRequestDoc requestDoc)
+        public SlackResponseDoc ProcessSlashCommand(SlackRequestDoc requestDoc)
         {
             //First thing, capture the timestamp
             requestDoc.RequestTime = DateTime.Now;
@@ -35,56 +35,56 @@ namespace TriviaGame.Services
             switch (operatorText)
             {
                 case "start":
-                    return _triviaGameService.start(requestDoc, String.IsNullOrEmpty(commandText) ? null : commandText);
+                    return _triviaGameService.Start(requestDoc, String.IsNullOrEmpty(commandText) ? null : commandText);
                 case "stop":
-                    return _triviaGameService.stop(requestDoc);
+                    return _triviaGameService.Stop(requestDoc);
                 case "join":
-                    return _triviaGameService.join(requestDoc);
+                    return _triviaGameService.Join(requestDoc);
                 case "pass":
                     if (commandParts.Length < 2)
                     {
                         return getPassFormat(requestDoc.Command);
                     }
 
-                    return _triviaGameService.pass(requestDoc, commandText);
+                    return _triviaGameService.Pass(requestDoc, commandText);
                 case "question":
                     if (commandParts.Length < 2)
                     {
                         return getSubmitQuestionFormat(requestDoc.Command);
                     }
 
-                    return _triviaGameService.submitQuestion(requestDoc, commandText);
+                    return _triviaGameService.SubmitQuestion(requestDoc, commandText);
                 case "answer":
                     if (commandParts.Length < 2)
                     {
                         return getSubmitAnswerFormat(requestDoc.Command);
                     }
 
-                    return _triviaGameService.submitAnswer(requestDoc, commandText);
+                    return _triviaGameService.SubmitAnswer(requestDoc, commandText);
                 case "incorrect":
                     if (commandParts.Length < 2)
                     {
                         return getMarkAnswerIncorrectFormat(requestDoc.Command);
                     }
 
-                    return _triviaGameService.markAnswerIncorrect(requestDoc, commandText);
+                    return _triviaGameService.MarkAnswerIncorrect(requestDoc, commandText);
                 case "correct":
                     if (commandParts.Length < 2)
                     {
                         return getMarkAnswerCorrectFormat(requestDoc.Command);
                     }
 
-                    return _triviaGameService.markAnswerCorrect(
+                    return _triviaGameService.MarkAnswerCorrect(
                             requestDoc,
                             commandParts[1],
                             commandParts.Length > 2 ? commandText.Substring(commandParts[1].Length).Trim() : null
                     );
                 case "status":
-                    return _triviaGameService.getStatus(requestDoc);
+                    return _triviaGameService.GetStatus(requestDoc);
                 case "scores":
-                    return _triviaGameService.getScores(requestDoc);
+                    return _triviaGameService.GetScores(requestDoc);
                 case "reset":
-                    return _triviaGameService.resetScores(requestDoc);
+                    return _triviaGameService.ResetScores(requestDoc);
             }
 
             return getUsageFormat(requestDoc.Command);

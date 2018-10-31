@@ -8,6 +8,6 @@ namespace TriviaGame.Services
 {
     public interface ISlackSlashCommandService
     {
-        SlackResponseDoc processSlashCommand(SlackRequestDoc requestDoc);
+        SlackResponseDoc ProcessSlashCommand(SlackRequestDoc requestDoc);
     }
 }
