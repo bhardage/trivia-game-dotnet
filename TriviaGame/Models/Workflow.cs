@@ -25,6 +25,7 @@ namespace TriviaGame.Models
         [BsonElement("answers")]
         public List<Answer> Answers { get; set; } = new List<Answer>();
 
+        [BsonRepresentation(BsonType.String)]
         [BsonElement("stage")]
         public WorkflowStage Stage { get; set; }
     }

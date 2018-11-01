@@ -1,4 +1,5 @@
-﻿using MongoDB.Driver;
+﻿using MongoDB.Bson;
+using MongoDB.Driver;
 using System.Collections.Generic;
 using System.Linq;
 using TriviaGame.Models;
@@ -33,12 +34,12 @@ namespace TriviaGame.Repositories
 
             return getScores()
                 .Find(filter)
-                .First();
+                .FirstOrDefault();
         }
 
         public ScoreInfo Save(ScoreInfo scoreInfo)
         {
-            if (scoreInfo.Id == null)
+            if (scoreInfo.Id == ObjectId.Empty)
             {
                 getScores()
                     .InsertOne(scoreInfo);

@@ -21,12 +21,12 @@ namespace TriviaGame.Repositories
 
             return getWorkflows()
                 .Find(filter)
-                .First();
+                .FirstOrDefault();
         }
 
         public Workflow Save(Workflow workflow)
         {
-            if (workflow.Id == null)
+            if (workflow.Id == ObjectId.Empty)
             {
                 getWorkflows()
                     .InsertOne(workflow);

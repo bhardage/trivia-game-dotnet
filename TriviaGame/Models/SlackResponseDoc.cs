@@ -12,5 +12,14 @@ namespace TriviaGame.Models
         public SlackResponseType ResponseType { get; set; }
         public string Text { get; set; }
         public List<SlackAttachment> Attachments { get; set; }
+
+        public static SlackResponseDoc Failure(string text)
+        {
+            return new SlackResponseDoc
+            {
+                ResponseType = SlackResponseType.EPHEMERAL,
+                Text = text
+            };
+        }
     }
 }
