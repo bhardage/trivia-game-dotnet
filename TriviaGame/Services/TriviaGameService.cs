@@ -8,14 +8,28 @@ namespace TriviaGame.Services
 {
     public class TriviaGameService : ITriviaGameService
     {
+        private const string GAME_NOT_STARTED_FORMAT = "A game has not yet been started. If you'd like to start a game, try `{0} start`";
+
+        private const string BASE_STATUS_FORMAT = "*Topic:* {0}\n*Turn:* {1}\n*Question:*{2}";
+        private const string ANSWERS_FORMAT = "\n\n*Answers:*{0}";
+        private const string SINGLE_ANSWER_FORMAT = "{0,22}   {1}   {2}";
+
         private const string NO_CORRECT_ANSWER_TARGET = "none";
         private const string SCORES_FORMAT = "```Scores:\n\n{0}```";
 
-        private readonly IScoreService _scoreService;
+        private const string DATE_FORMAT = "MM/dd/yyyy hh:mm:ss tt";
+        private const string LOCAL_TIMEZONE_NAME = "Central Standard Time";
 
-        public TriviaGameService(IScoreService scoreService)
+        private readonly IScoreService _scoreService;
+        private readonly IWorkflowService _workflowService;
+
+        public TriviaGameService(
+            IScoreService scoreService,
+            IWorkflowService workflowService
+        )
         {
             _scoreService = scoreService;
+            _workflowService = workflowService;
         }
 
         public SlackResponseDoc Start(SlackRequestDoc requestDoc, string topic)
@@ -60,7 +74,13 @@ namespace TriviaGame.Services
 
         public SlackResponseDoc GetStatus(SlackRequestDoc requestDoc)
         {
-            throw new NotImplementedException();
+            GameState gameState = _workflowService.GetCurrentGameState(requestDoc.ChannelId);
+
+            return new SlackResponseDoc
+            {
+                ResponseType = SlackResponseType.EPHEMERAL,
+                Text = generateStatusText(requestDoc, gameState)
+            };
         }
 
         public SlackResponseDoc GetScores(SlackRequestDoc requestDoc)
@@ -84,13 +104,61 @@ namespace TriviaGame.Services
             };
         }
 
+        private string generateStatusText(SlackRequestDoc requestDoc, GameState gameState)
+        {
+            if (gameState == null || gameState.ControllingUserId == null)
+            {
+                return String.Format(GAME_NOT_STARTED_FORMAT, requestDoc.Command);
+            }
+
+            bool isControllingUser = gameState.ControllingUserId == requestDoc.UserId;
+
+            string topic = gameState.Topic == null ? "None" : gameState.Topic;
+            string turn = isControllingUser ? "Yours" : "<@" + gameState.ControllingUserId + ">";
+            string question = gameState.Question == null ? " Waiting..." : ("\n\n" + gameState.Question);
+
+            string statusText = String.Format(BASE_STATUS_FORMAT, topic, turn, question);
+
+            if (gameState.Question != null)
+            {
+                string answerText;
+
+                if (gameState.Answers == null || !gameState.Answers.Any())
+                {
+                    answerText = " Waiting...";
+                }
+                else
+                {
+                    int maxUsernameLength = 1 + gameState.Answers
+                        .Select(a => a.Username.Length)
+                        .Max();
+
+                    answerText = "\n\n```" + gameState.Answers
+                        .OrderBy(answer => answer.CreatedDate)
+                        .Select(answer =>
+                            String.Format(
+                                SINGLE_ANSWER_FORMAT,
+                                TimeZoneInfo.ConvertTimeFromUtc(answer.CreatedDate, TimeZoneInfo.FindSystemTimeZoneById(LOCAL_TIMEZONE_NAME)).ToString(DATE_FORMAT),
+                                String.Format("@{0,-" + maxUsernameLength + "}", answer.Username),
+                                answer.Text
+                            )
+                        )
+                        .Aggregate((a, b) => a + "\n" + b) + "```";
+                }
+
+                statusText += String.Format(ANSWERS_FORMAT, answerText);
+            }
+
+            return statusText;
+        }
+
         private string generateScoreText(SlackRequestDoc requestDoc)
         {
             Dictionary<SlackUser, long> scoresByUser = _scoreService.GetAllScoresByUser(requestDoc.ChannelId);
 
             string scoreText;
 
-            if (scoresByUser.Count == 0)
+            if (!scoresByUser.Any())
             {
                 scoreText = "No scores yet...";
             }
