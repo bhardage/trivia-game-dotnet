@@ -24,6 +24,8 @@ namespace TriviaGame
             services.AddSingleton<ISlackSlashCommandService, SlackSlashCommandService>();
             services.AddSingleton<ITriviaGameService, TriviaGameService>();
 
+            services.AddSingleton<IScoreService, ScoreService>();
+
             services.AddSingleton<IScoreInfoRepository, ScoreInfoRepository>();
             services.AddSingleton<IWorkflowRepository, WorkflowRepository>();
 
