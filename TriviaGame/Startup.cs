@@ -25,6 +25,7 @@ namespace TriviaGame
             services.AddSingleton<ITriviaGameService, TriviaGameService>();
 
             services.AddSingleton<IScoreInfoRepository, ScoreInfoRepository>();
+            services.AddSingleton<IWorkflowRepository, WorkflowRepository>();
 
             services.AddSingleton<ITriviaGameDbContext, TriviaGameDbContext>();
         }
