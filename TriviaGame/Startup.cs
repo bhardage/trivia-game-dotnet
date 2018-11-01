@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using TriviaGame.Repositories;
 using TriviaGame.Services;
 
 namespace TriviaGame
@@ -22,6 +23,8 @@ namespace TriviaGame
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
             services.AddSingleton<ISlackSlashCommandService, SlackSlashCommandService>();
             services.AddSingleton<ITriviaGameService, TriviaGameService>();
+
+            services.AddSingleton<IScoreInfoRepository, ScoreInfoRepository>();
 
             services.AddSingleton<ITriviaGameDbContext, TriviaGameDbContext>();
         }
