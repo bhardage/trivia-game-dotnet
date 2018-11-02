@@ -161,7 +161,31 @@ namespace TriviaGame.Services
 
         public SlackResponseDoc SubmitQuestion(SlackRequestDoc requestDoc, string question)
         {
-            throw new NotImplementedException();
+            try
+            {
+                _workflowService.OnQuestionSubmitted(requestDoc.ChannelId, requestDoc.UserId, question);
+            }
+            catch (GameNotStartedException e)
+            {
+                return SlackResponseDoc.Failure(String.Format(GAME_NOT_STARTED_FORMAT, requestDoc.Command));
+            }
+            catch (WorkflowException e)
+            {
+                return SlackResponseDoc.Failure(e.Message);
+            }
+
+            SlackResponseDoc delayedResponseDoc = new SlackResponseDoc
+            {
+                ResponseType = SlackResponseType.IN_CHANNEL,
+                Text = String.Format("<@{0}> asked the following question:\n\n{1}", requestDoc.UserId, question)
+            };
+            _delayedSlackService.sendResponse(requestDoc.ResponseUrl, delayedResponseDoc);
+
+            return new SlackResponseDoc
+            {
+                ResponseType = SlackResponseType.EPHEMERAL,
+                Text = "Question posted."
+            };
         }
 
         public SlackResponseDoc SubmitAnswer(SlackRequestDoc requestDoc, string answer)

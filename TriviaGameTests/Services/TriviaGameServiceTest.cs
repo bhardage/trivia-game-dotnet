@@ -2,7 +2,6 @@
 using Moq;
 using System;
 using System.Collections.Generic;
-using System.Text;
 using TriviaGame.Exceptions;
 using TriviaGame.Models;
 using TriviaGame.Services;
@@ -84,7 +83,7 @@ namespace TriviaGameTests.Services
         }
 
         [TestMethod]
-        public void TestSuccessfulStart()
+        public void TestStartSuccessfully()
         {
             string channelId = "channel";
             string userId = "U12345";
@@ -161,7 +160,7 @@ namespace TriviaGameTests.Services
         }
 
         [TestMethod]
-        public void TestSuccessfulStop()
+        public void TestStopSuccessfully()
         {
             string channelId = "channel";
             string userId = "U12345";
@@ -342,7 +341,7 @@ namespace TriviaGameTests.Services
         }
 
         [TestMethod]
-        public void TestSuccessfulPass()
+        public void TestPassSuccessfully()
         {
             string channelId = "channel";
             string userId = "U12345";
@@ -383,6 +382,102 @@ namespace TriviaGameTests.Services
             Assert.IsNotNull(capturedResponseDoc);
             Assert.AreEqual(SlackResponseType.IN_CHANNEL, capturedResponseDoc.ResponseType);
             Assert.AreEqual("<@" + userId + "> has decided to pass his/her turn to <@" + targetUserId + ">.\n\nOK, <@" + targetUserId + ">, it's your turn to ask a question!", capturedResponseDoc.Text);
+        }
+        #endregion
+
+        #region SubmitQuestion
+        [TestMethod]
+        public void TestSubmitQuestionWithGameNotStarted()
+        {
+            string channelId = "channel";
+            string userId = "U12345";
+            string command = "/command";
+            string question = "some question";
+
+            SlackRequestDoc requestDoc = new SlackRequestDoc
+            {
+                ChannelId = channelId,
+                UserId = userId,
+                Command = command
+            };
+
+            workflowService.Setup(x => x.OnQuestionSubmitted(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).Throws(new GameNotStartedException());
+
+            SlackResponseDoc responseDoc = cut.SubmitQuestion(requestDoc, question);
+
+            Assert.IsNotNull(responseDoc);
+            Assert.AreEqual(SlackResponseType.EPHEMERAL, responseDoc.ResponseType);
+            Assert.AreEqual("A game has not yet been started. If you'd like to start a game, try `" + command + " start`", responseDoc.Text);
+
+            workflowService.Verify(x => x.OnQuestionSubmitted(channelId, userId, question));
+        }
+
+        [TestMethod]
+        public void TestSubmitQuestionWithWorkflowException()
+        {
+            string channelId = "channel";
+            string userId = "U12345";
+            string command = "/command";
+            string question = "some question";
+            string exceptionMessage = "some message";
+
+            SlackRequestDoc requestDoc = new SlackRequestDoc
+            {
+                ChannelId = channelId,
+                UserId = userId,
+                Command = command
+            };
+
+            workflowService.Setup(x => x.OnQuestionSubmitted(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).Throws(new WorkflowException(exceptionMessage));
+
+            SlackResponseDoc responseDoc = cut.SubmitQuestion(requestDoc, question);
+
+            Assert.IsNotNull(responseDoc);
+            Assert.AreEqual(SlackResponseType.EPHEMERAL, responseDoc.ResponseType);
+            Assert.AreEqual(exceptionMessage, responseDoc.Text);
+
+            workflowService.Verify(x => x.OnQuestionSubmitted(channelId, userId, question));
+        }
+
+        [TestMethod]
+        public void TestSubmitQuestionSuccessfully()
+        {
+            string channelId = "channel";
+            string userId = "U12345";
+            string command = "/command";
+            string responseUrl = "some url";
+            string question = "some question";
+
+            SlackRequestDoc requestDoc = new SlackRequestDoc
+            {
+                ChannelId = channelId,
+                UserId = userId,
+                Command = command,
+                ResponseUrl = responseUrl
+            };
+
+            string capturedResponseUrl = null;
+            SlackResponseDoc capturedResponseDoc = null;
+            delayedSlackService.Setup(x => x.sendResponse(It.IsAny<string>(), It.IsAny<SlackResponseDoc>()))
+                .Callback<string, SlackResponseDoc>((ru, rd) =>
+                {
+                    capturedResponseUrl = ru;
+                    capturedResponseDoc = rd;
+                });
+
+            SlackResponseDoc responseDoc = cut.SubmitQuestion(requestDoc, question);
+
+            Assert.IsNotNull(responseDoc);
+            Assert.AreEqual(SlackResponseType.EPHEMERAL, responseDoc.ResponseType);
+            Assert.AreEqual("Question posted.", responseDoc.Text);
+
+            workflowService.Verify(x => x.OnQuestionSubmitted(channelId, userId, question));
+            delayedSlackService.Verify(x => x.sendResponse(It.IsAny<string>(), It.IsAny<SlackResponseDoc>()));
+
+            Assert.AreEqual(responseUrl, capturedResponseUrl);
+            Assert.IsNotNull(capturedResponseDoc);
+            Assert.AreEqual(SlackResponseType.IN_CHANNEL, capturedResponseDoc.ResponseType);
+            Assert.AreEqual("<@" + userId + "> asked the following question:\n\n" + question, capturedResponseDoc.Text);
         }
         #endregion
 
