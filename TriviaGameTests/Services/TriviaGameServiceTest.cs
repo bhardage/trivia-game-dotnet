@@ -272,11 +272,11 @@ namespace TriviaGameTests.Services
 
             scoreService.Setup(x => x.DoesUserExist(It.IsAny<string>(), It.IsAny<string>())).Returns(false);
 
-            SlackResponseDoc responseDoc = cut.Pass(requestDoc, targetUserId);
+            SlackResponseDoc responseDoc = cut.Pass(requestDoc, "<@" + targetUserId + ">");
 
             Assert.IsNotNull(responseDoc);
             Assert.AreEqual(SlackResponseType.EPHEMERAL, responseDoc.ResponseType);
-            Assert.AreEqual("User " + targetUserId + " does not exist. Please choose a valid user.", responseDoc.Text);
+            Assert.AreEqual("User <@" + targetUserId + "> does not exist. Please choose a valid user.", responseDoc.Text);
             Assert.IsNotNull(responseDoc.Attachments);
             Assert.AreEqual(1, responseDoc.Attachments.Count);
             Assert.AreEqual("Usage: `" + command + " pass @jsmith`", responseDoc.Attachments[0].Text);
@@ -303,7 +303,7 @@ namespace TriviaGameTests.Services
             scoreService.Setup(x => x.DoesUserExist(It.IsAny<string>(), It.IsAny<string>())).Returns(true);
             workflowService.Setup(x => x.OnTurnChanged(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).Throws(new GameNotStartedException());
 
-            SlackResponseDoc responseDoc = cut.Pass(requestDoc, targetUserId);
+            SlackResponseDoc responseDoc = cut.Pass(requestDoc, "<@" + targetUserId + ">");
 
             Assert.IsNotNull(responseDoc);
             Assert.AreEqual(SlackResponseType.EPHEMERAL, responseDoc.ResponseType);
@@ -333,7 +333,7 @@ namespace TriviaGameTests.Services
             scoreService.Setup(x => x.DoesUserExist(It.IsAny<string>(), It.IsAny<string>())).Returns(true);
             workflowService.Setup(x => x.OnTurnChanged(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).Throws(new WorkflowException(exceptionMessage));
 
-            SlackResponseDoc responseDoc = cut.Pass(requestDoc, targetUserId);
+            SlackResponseDoc responseDoc = cut.Pass(requestDoc, "<@" + targetUserId + ">");
 
             Assert.IsNotNull(responseDoc);
             Assert.AreEqual(SlackResponseType.EPHEMERAL, responseDoc.ResponseType);
@@ -372,7 +372,7 @@ namespace TriviaGameTests.Services
                     capturedResponseDoc = rd;
                 });
 
-            SlackResponseDoc responseDoc = cut.Pass(requestDoc, targetUserId);
+            SlackResponseDoc responseDoc = cut.Pass(requestDoc, "<@" + targetUserId + ">");
 
             Assert.IsNotNull(responseDoc);
             Assert.AreEqual(SlackResponseType.EPHEMERAL, responseDoc.ResponseType);
