@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using TriviaGame.Exceptions;
 using TriviaGame.Models;
 
 namespace TriviaGame.Services
@@ -34,12 +35,53 @@ namespace TriviaGame.Services
 
         public SlackResponseDoc Start(SlackRequestDoc requestDoc, string topic)
         {
-            throw new NotImplementedException();
+            string channelId = requestDoc.ChannelId;
+            string userId = requestDoc.UserId;
+
+            try
+            {
+                _workflowService.OnGameStarted(channelId, userId, topic);
+            }
+            catch (GameNotStartedException e)
+            {
+                return SlackResponseDoc.Failure(String.Format(GAME_NOT_STARTED_FORMAT, requestDoc.Command));
+            }
+            catch (WorkflowException e)
+            {
+                return SlackResponseDoc.Failure(e.Message);
+            }
+
+            return new SlackResponseDoc
+            {
+                ResponseType = SlackResponseType.IN_CHANNEL,
+                Text = String.Format("OK, <@{0}>, please ask a question.", userId)
+            };
         }
 
         public SlackResponseDoc Stop(SlackRequestDoc requestDoc)
         {
-            throw new NotImplementedException();
+            try
+            {
+                _workflowService.OnGameStopped(requestDoc.ChannelId, requestDoc.UserId);
+            }
+            catch (GameNotStartedException e)
+            {
+                return SlackResponseDoc.Failure(String.Format(GAME_NOT_STARTED_FORMAT, requestDoc.Command));
+            }
+            catch (WorkflowException e)
+            {
+                return SlackResponseDoc.Failure(e.Message);
+            }
+
+            return new SlackResponseDoc
+            {
+                ResponseType = SlackResponseType.IN_CHANNEL,
+                Text = String.Format(
+                    "The game has been stopped but scores have not been cleared. If you'd like to start a new game, try `{0} start`.",
+                    requestDoc.Command,
+                    requestDoc.UserId
+                )
+            };
         }
 
         public SlackResponseDoc Join(SlackRequestDoc requestDoc)

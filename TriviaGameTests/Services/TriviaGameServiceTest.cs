@@ -3,6 +3,7 @@ using Moq;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using TriviaGame.Exceptions;
 using TriviaGame.Models;
 using TriviaGame.Services;
 
@@ -24,6 +25,161 @@ namespace TriviaGameTests.Services
             workflowService.Reset();
             cut = new TriviaGameService(scoreService.Object, workflowService.Object);
         }
+
+        #region Start
+        [TestMethod]
+        public void TestStartWithGameNotStarted()
+        {
+            string channelId = "channel";
+            string userId = "U12345";
+            string command = "/command";
+            string topic = "some topic";
+
+            SlackRequestDoc requestDoc = new SlackRequestDoc
+            {
+                ChannelId = channelId,
+                UserId = userId,
+                Command = command
+            };
+
+            workflowService.Setup(x => x.OnGameStarted(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).Throws(new GameNotStartedException());
+
+            SlackResponseDoc responseDoc = cut.Start(requestDoc, topic);
+
+            Assert.IsNotNull(responseDoc);
+            Assert.AreEqual(SlackResponseType.EPHEMERAL, responseDoc.ResponseType);
+            Assert.AreEqual("A game has not yet been started. If you'd like to start a game, try `" + command + " start`", responseDoc.Text);
+
+            workflowService.Verify(x => x.OnGameStarted(channelId, userId, topic));
+        }
+
+        [TestMethod]
+        public void TestStartWithWorkflowException()
+        {
+            string channelId = "channel";
+            string userId = "U12345";
+            string command = "/command";
+            string topic = "some topic";
+            string exceptionMessage = "some message";
+
+            SlackRequestDoc requestDoc = new SlackRequestDoc
+            {
+                ChannelId = channelId,
+                UserId = userId,
+                Command = command
+            };
+
+            workflowService.Setup(x => x.OnGameStarted(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).Throws(new WorkflowException(exceptionMessage));
+
+            SlackResponseDoc responseDoc = cut.Start(requestDoc, topic);
+
+            Assert.IsNotNull(responseDoc);
+            Assert.AreEqual(SlackResponseType.EPHEMERAL, responseDoc.ResponseType);
+            Assert.AreEqual(exceptionMessage, responseDoc.Text);
+
+            workflowService.Verify(x => x.OnGameStarted(channelId, userId, topic));
+        }
+
+        [TestMethod]
+        public void TestSuccessfulStart()
+        {
+            string channelId = "channel";
+            string userId = "U12345";
+            string command = "/command";
+            string topic = "some topic";
+
+            SlackRequestDoc requestDoc = new SlackRequestDoc
+            {
+                ChannelId = channelId,
+                UserId = userId,
+                Command = command
+            };
+
+            SlackResponseDoc responseDoc = cut.Start(requestDoc, topic);
+
+            Assert.IsNotNull(responseDoc);
+            Assert.AreEqual(SlackResponseType.IN_CHANNEL, responseDoc.ResponseType);
+            Assert.AreEqual("OK, <@" + userId + ">, please ask a question.", responseDoc.Text);
+
+            workflowService.Verify(x => x.OnGameStarted(channelId, userId, topic));
+        }
+        #endregion
+
+        #region Stop
+        [TestMethod]
+        public void TestStopWithGameNotStarted()
+        {
+            string channelId = "channel";
+            string userId = "U12345";
+            string command = "/command";
+
+            SlackRequestDoc requestDoc = new SlackRequestDoc
+            {
+                ChannelId = channelId,
+                UserId = userId,
+                Command = command
+            };
+
+            workflowService.Setup(x => x.OnGameStopped(It.IsAny<string>(), It.IsAny<string>())).Throws(new GameNotStartedException());
+
+            SlackResponseDoc responseDoc = cut.Stop(requestDoc);
+
+            Assert.IsNotNull(responseDoc);
+            Assert.AreEqual(SlackResponseType.EPHEMERAL, responseDoc.ResponseType);
+            Assert.AreEqual("A game has not yet been started. If you'd like to start a game, try `" + command + " start`", responseDoc.Text);
+
+            workflowService.Verify(x => x.OnGameStopped(channelId, userId));
+        }
+
+        [TestMethod]
+        public void TestStopWithWorkflowException()
+        {
+            string channelId = "channel";
+            string userId = "U12345";
+            string command = "/command";
+            string exceptionMessage = "some message";
+
+            SlackRequestDoc requestDoc = new SlackRequestDoc
+            {
+                ChannelId = channelId,
+                UserId = userId,
+                Command = command
+            };
+
+            workflowService.Setup(x => x.OnGameStopped(It.IsAny<string>(), It.IsAny<string>())).Throws(new WorkflowException(exceptionMessage));
+
+            SlackResponseDoc responseDoc = cut.Stop(requestDoc);
+
+            Assert.IsNotNull(responseDoc);
+            Assert.AreEqual(SlackResponseType.EPHEMERAL, responseDoc.ResponseType);
+            Assert.AreEqual(exceptionMessage, responseDoc.Text);
+
+            workflowService.Verify(x => x.OnGameStopped(channelId, userId));
+        }
+
+        [TestMethod]
+        public void TestSuccessfulStop()
+        {
+            string channelId = "channel";
+            string userId = "U12345";
+            string command = "/command";
+
+            SlackRequestDoc requestDoc = new SlackRequestDoc
+            {
+                ChannelId = channelId,
+                UserId = userId,
+                Command = command
+            };
+
+            SlackResponseDoc responseDoc = cut.Stop(requestDoc);
+
+            Assert.IsNotNull(responseDoc);
+            Assert.AreEqual(SlackResponseType.IN_CHANNEL, responseDoc.ResponseType);
+            Assert.AreEqual("The game has been stopped but scores have not been cleared. If you'd like to start a new game, try `" + command + " start`.", responseDoc.Text);
+
+            workflowService.Verify(x => x.OnGameStopped(channelId, userId));
+        }
+        #endregion
 
         #region GetStatus
         [TestMethod]
