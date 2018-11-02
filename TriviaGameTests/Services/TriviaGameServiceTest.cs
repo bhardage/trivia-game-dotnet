@@ -718,6 +718,363 @@ namespace TriviaGameTests.Services
         }
         #endregion
 
+        #region MarkAnswerCorrect
+        [TestMethod]
+        public void TestMarkAnswerCorrectWithGameNotStarted()
+        {
+            string channelId = "channel";
+            string userId = "U12345";
+            string command = "/command";
+            string targetUserId = "U12346";
+
+            SlackRequestDoc requestDoc = new SlackRequestDoc
+            {
+                ChannelId = channelId,
+                UserId = userId,
+                Command = command
+            };
+
+            workflowService.Setup(x => x.OnCorrectAnswerSelected(It.IsAny<string>(), It.IsAny<string>())).Throws(new GameNotStartedException());
+
+            SlackResponseDoc responseDoc = cut.MarkAnswerCorrect(requestDoc, "<@" + targetUserId + ">", null);
+
+            Assert.IsNotNull(responseDoc);
+            Assert.AreEqual(SlackResponseType.EPHEMERAL, responseDoc.ResponseType);
+            Assert.AreEqual("A game has not yet been started. If you'd like to start a game, try `" + command + " start`", responseDoc.Text);
+
+            workflowService.Verify(x => x.OnCorrectAnswerSelected(channelId, userId));
+            workflowService.VerifyNoOtherCalls();
+            scoreService.VerifyNoOtherCalls();
+            delayedSlackService.VerifyNoOtherCalls();
+        }
+
+        [TestMethod]
+        public void TestMarkAnswerCorrectWithWorkflowExceptionOnCorrectAnswerSelected()
+        {
+            string channelId = "channel";
+            string userId = "U12345";
+            string command = "/command";
+            string targetUserId = "U12346";
+            string exceptionMessage = "some message";
+
+            SlackRequestDoc requestDoc = new SlackRequestDoc
+            {
+                ChannelId = channelId,
+                UserId = userId,
+                Command = command
+            };
+
+            workflowService.Setup(x => x.OnCorrectAnswerSelected(It.IsAny<string>(), It.IsAny<string>())).Throws(new WorkflowException(exceptionMessage));
+
+            SlackResponseDoc responseDoc = cut.MarkAnswerCorrect(requestDoc, "<@" + targetUserId + ">", null);
+
+            Assert.IsNotNull(responseDoc);
+            Assert.AreEqual(SlackResponseType.EPHEMERAL, responseDoc.ResponseType);
+            Assert.AreEqual(exceptionMessage, responseDoc.Text);
+
+            workflowService.Verify(x => x.OnCorrectAnswerSelected(channelId, userId));
+            workflowService.VerifyNoOtherCalls();
+            scoreService.VerifyNoOtherCalls();
+            delayedSlackService.VerifyNoOtherCalls();
+        }
+
+        [TestMethod]
+        public void TestMarkAnswerCorrectWithNoTargetAndWorkflowExceptionOnTurnChanged()
+        {
+            string channelId = "channel";
+            string userId = "U12345";
+            string command = "/command";
+            string exceptionMessage = "some message";
+
+            SlackRequestDoc requestDoc = new SlackRequestDoc
+            {
+                ChannelId = channelId,
+                UserId = userId,
+                Command = command
+            };
+
+            workflowService.Setup(x => x.OnTurnChanged(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).Throws(new WorkflowException(exceptionMessage));
+
+            SlackResponseDoc responseDoc = cut.MarkAnswerCorrect(requestDoc, "NONE", null);
+
+            Assert.IsNotNull(responseDoc);
+            Assert.AreEqual(SlackResponseType.EPHEMERAL, responseDoc.ResponseType);
+            Assert.AreEqual(exceptionMessage, responseDoc.Text);
+
+            workflowService.Verify(x => x.OnCorrectAnswerSelected(channelId, userId));
+            workflowService.Verify(x => x.OnTurnChanged(channelId, userId, userId));
+            workflowService.VerifyNoOtherCalls();
+            scoreService.VerifyNoOtherCalls();
+            delayedSlackService.VerifyNoOtherCalls();
+        }
+
+        [TestMethod]
+        public void TestMarkAnswerCorrectWithTargetAndScoreException()
+        {
+            string channelId = "channel";
+            string userId = "U12345";
+            string command = "/command";
+            string targetUserId = "U12346";
+
+            SlackRequestDoc requestDoc = new SlackRequestDoc
+            {
+                ChannelId = channelId,
+                UserId = userId,
+                Command = command
+            };
+
+            scoreService.Setup(x => x.IncrementScore(It.IsAny<string>(), It.IsAny<string>())).Throws(new ScoreException());
+
+            SlackResponseDoc responseDoc = cut.MarkAnswerCorrect(requestDoc, "<@" + targetUserId + ">", null);
+
+            Assert.IsNotNull(responseDoc);
+            Assert.AreEqual(SlackResponseType.EPHEMERAL, responseDoc.ResponseType);
+            Assert.AreEqual("User <@" + targetUserId + "> does not exist. Please choose a valid user.", responseDoc.Text);
+            Assert.IsNotNull(responseDoc.Attachments);
+            Assert.AreEqual(1, responseDoc.Attachments.Count);
+            Assert.AreEqual("Usage: `" + command + " correct @jsmith Blue skies`", responseDoc.Attachments[0].Text);
+
+            workflowService.Verify(x => x.OnCorrectAnswerSelected(channelId, userId));
+            workflowService.VerifyNoOtherCalls();
+            scoreService.Verify(x => x.IncrementScore(channelId, targetUserId));
+            delayedSlackService.VerifyNoOtherCalls();
+        }
+
+        [TestMethod]
+        public void TestMarkAnswerCorrectWithTargetAndWorkflowExceptionOnTurnChanged()
+        {
+            string channelId = "channel";
+            string userId = "U12345";
+            string command = "/command";
+            string targetUserId = "U12346";
+            string exceptionMessage = "some message";
+
+            SlackRequestDoc requestDoc = new SlackRequestDoc
+            {
+                ChannelId = channelId,
+                UserId = userId,
+                Command = command
+            };
+
+            workflowService.Setup(x => x.OnTurnChanged(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).Throws(new WorkflowException(exceptionMessage));
+
+            SlackResponseDoc responseDoc = cut.MarkAnswerCorrect(requestDoc, "<@" + targetUserId + ">", null);
+
+            Assert.IsNotNull(responseDoc);
+            Assert.AreEqual(SlackResponseType.EPHEMERAL, responseDoc.ResponseType);
+            Assert.AreEqual(exceptionMessage, responseDoc.Text);
+
+            workflowService.Verify(x => x.OnCorrectAnswerSelected(channelId, userId));
+            workflowService.Verify(x => x.OnTurnChanged(channelId, userId, targetUserId));
+            scoreService.Verify(x => x.IncrementScore(channelId, targetUserId));
+            delayedSlackService.VerifyNoOtherCalls();
+        }
+
+        [TestMethod]
+        public void TestMarkAnswerCorrectSuccessfullyWithNoTargetAndNoCorrectAnswer()
+        {
+            string channelId = "channel";
+            string userId = "U12345";
+            string command = "/command";
+            string responseUrl = "some url";
+
+            SlackRequestDoc requestDoc = new SlackRequestDoc
+            {
+                ChannelId = channelId,
+                UserId = userId,
+                Command = command,
+                ResponseUrl = responseUrl
+            };
+
+            scoreService.Setup(x => x.GetAllScoresByUser(It.IsAny<string>())).Returns(new Dictionary<SlackUser, long>());
+
+            string capturedResponseUrl = null;
+            SlackResponseDoc capturedResponseDoc = null;
+            delayedSlackService.Setup(x => x.sendResponse(It.IsAny<string>(), It.IsAny<SlackResponseDoc>()))
+                .Callback<string, SlackResponseDoc>((ru, rd) =>
+                {
+                    capturedResponseUrl = ru;
+                    capturedResponseDoc = rd;
+                });
+
+            SlackResponseDoc responseDoc = cut.MarkAnswerCorrect(requestDoc, "NONE", null);
+
+            Assert.IsNotNull(responseDoc);
+            Assert.AreEqual(SlackResponseType.EPHEMERAL, responseDoc.ResponseType);
+            Assert.AreEqual("Score updated.", responseDoc.Text);
+
+            workflowService.Verify(x => x.OnCorrectAnswerSelected(channelId, userId));
+            workflowService.Verify(x => x.OnTurnChanged(channelId, userId, userId));
+            scoreService.Verify(x => x.GetAllScoresByUser(channelId));
+            delayedSlackService.Verify(x => x.sendResponse(It.IsAny<string>(), It.IsAny<SlackResponseDoc>()));
+
+            Assert.AreEqual(responseUrl, capturedResponseUrl);
+            Assert.IsNotNull(capturedResponseDoc);
+            Assert.AreEqual(SlackResponseType.IN_CHANNEL, capturedResponseDoc.ResponseType);
+            Assert.AreEqual(
+                "It looks like no one was able to answer that one!\n\n```Scores:\n\nNo scores yet...```\n\nOK, <@" +
+                userId +
+                ">, let's try another one!",
+                capturedResponseDoc.Text
+            );
+        }
+
+        [TestMethod]
+        public void TestMarkAnswerCorrectSuccessfullyWithNoTargetAndCorrectAnswer()
+        {
+            string channelId = "channel";
+            string userId = "U12345";
+            string command = "/command";
+            string responseUrl = "some url";
+            string answer = "some answer";
+
+            SlackRequestDoc requestDoc = new SlackRequestDoc
+            {
+                ChannelId = channelId,
+                UserId = userId,
+                Command = command,
+                ResponseUrl = responseUrl
+            };
+
+            scoreService.Setup(x => x.GetAllScoresByUser(It.IsAny<string>())).Returns(new Dictionary<SlackUser, long>());
+
+            string capturedResponseUrl = null;
+            SlackResponseDoc capturedResponseDoc = null;
+            delayedSlackService.Setup(x => x.sendResponse(It.IsAny<string>(), It.IsAny<SlackResponseDoc>()))
+                .Callback<string, SlackResponseDoc>((ru, rd) =>
+                {
+                    capturedResponseUrl = ru;
+                    capturedResponseDoc = rd;
+                });
+
+            SlackResponseDoc responseDoc = cut.MarkAnswerCorrect(requestDoc, "NONE", answer);
+
+            Assert.IsNotNull(responseDoc);
+            Assert.AreEqual(SlackResponseType.EPHEMERAL, responseDoc.ResponseType);
+            Assert.AreEqual("Score updated.", responseDoc.Text);
+
+            workflowService.Verify(x => x.OnCorrectAnswerSelected(channelId, userId));
+            workflowService.Verify(x => x.OnTurnChanged(channelId, userId, userId));
+            scoreService.Verify(x => x.GetAllScoresByUser(channelId));
+            delayedSlackService.Verify(x => x.sendResponse(It.IsAny<string>(), It.IsAny<SlackResponseDoc>()));
+
+            Assert.AreEqual(responseUrl, capturedResponseUrl);
+            Assert.IsNotNull(capturedResponseDoc);
+            Assert.AreEqual(SlackResponseType.IN_CHANNEL, capturedResponseDoc.ResponseType);
+            Assert.AreEqual(
+                "It looks like no one was able to answer that one! The correct answer was " +
+                answer +
+                ".\n\n```Scores:\n\nNo scores yet...```\n\nOK, <@" +
+                userId +
+                ">, let's try another one!",
+                capturedResponseDoc.Text
+            );
+        }
+
+        [TestMethod]
+        public void TestMarkAnswerCorrectSuccessfullyWithTargetAndNoCorrectAnswer()
+        {
+            string channelId = "channel";
+            string userId = "U12345";
+            string command = "/command";
+            string responseUrl = "some url";
+            string targetUserId = "U12346";
+
+            SlackRequestDoc requestDoc = new SlackRequestDoc
+            {
+                ChannelId = channelId,
+                UserId = userId,
+                Command = command,
+                ResponseUrl = responseUrl
+            };
+
+            scoreService.Setup(x => x.GetAllScoresByUser(It.IsAny<string>())).Returns(new Dictionary<SlackUser, long>());
+
+            string capturedResponseUrl = null;
+            SlackResponseDoc capturedResponseDoc = null;
+            delayedSlackService.Setup(x => x.sendResponse(It.IsAny<string>(), It.IsAny<SlackResponseDoc>()))
+                .Callback<string, SlackResponseDoc>((ru, rd) =>
+                {
+                    capturedResponseUrl = ru;
+                    capturedResponseDoc = rd;
+                });
+
+            SlackResponseDoc responseDoc = cut.MarkAnswerCorrect(requestDoc, "<@" + targetUserId + ">", null);
+
+            Assert.IsNotNull(responseDoc);
+            Assert.AreEqual(SlackResponseType.EPHEMERAL, responseDoc.ResponseType);
+            Assert.AreEqual("Score updated.", responseDoc.Text);
+
+            workflowService.Verify(x => x.OnCorrectAnswerSelected(channelId, userId));
+            workflowService.Verify(x => x.OnTurnChanged(channelId, userId, targetUserId));
+            scoreService.Verify(x => x.IncrementScore(channelId, targetUserId));
+            scoreService.Verify(x => x.GetAllScoresByUser(channelId));
+            delayedSlackService.Verify(x => x.sendResponse(It.IsAny<string>(), It.IsAny<SlackResponseDoc>()));
+
+            Assert.AreEqual(responseUrl, capturedResponseUrl);
+            Assert.IsNotNull(capturedResponseDoc);
+            Assert.AreEqual(SlackResponseType.IN_CHANNEL, capturedResponseDoc.ResponseType);
+            Assert.AreEqual(
+                "<@" + targetUserId + "> is correct!\n\n```Scores:\n\nNo scores yet...```\n\nOK, <@" +
+                targetUserId +
+                ">, you're up!",
+                capturedResponseDoc.Text
+            );
+        }
+
+        [TestMethod]
+        public void TestMarkAnswerCorrectSuccessfullyWithTargetAndCorrectAnswer()
+        {
+            string channelId = "channel";
+            string userId = "U12345";
+            string command = "/command";
+            string responseUrl = "some url";
+            string targetUserId = "U12346";
+            string answer = "some answer";
+
+            SlackRequestDoc requestDoc = new SlackRequestDoc
+            {
+                ChannelId = channelId,
+                UserId = userId,
+                Command = command,
+                ResponseUrl = responseUrl
+            };
+
+            scoreService.Setup(x => x.GetAllScoresByUser(It.IsAny<string>())).Returns(new Dictionary<SlackUser, long>());
+
+            string capturedResponseUrl = null;
+            SlackResponseDoc capturedResponseDoc = null;
+            delayedSlackService.Setup(x => x.sendResponse(It.IsAny<string>(), It.IsAny<SlackResponseDoc>()))
+                .Callback<string, SlackResponseDoc>((ru, rd) =>
+                {
+                    capturedResponseUrl = ru;
+                    capturedResponseDoc = rd;
+                });
+
+            SlackResponseDoc responseDoc = cut.MarkAnswerCorrect(requestDoc, "<@" + targetUserId + ">", answer);
+
+            Assert.IsNotNull(responseDoc);
+            Assert.AreEqual(SlackResponseType.EPHEMERAL, responseDoc.ResponseType);
+            Assert.AreEqual("Score updated.", responseDoc.Text);
+
+            workflowService.Verify(x => x.OnCorrectAnswerSelected(channelId, userId));
+            workflowService.Verify(x => x.OnTurnChanged(channelId, userId, targetUserId));
+            scoreService.Verify(x => x.IncrementScore(channelId, targetUserId));
+            scoreService.Verify(x => x.GetAllScoresByUser(channelId));
+            delayedSlackService.Verify(x => x.sendResponse(It.IsAny<string>(), It.IsAny<SlackResponseDoc>()));
+
+            Assert.AreEqual(responseUrl, capturedResponseUrl);
+            Assert.IsNotNull(capturedResponseDoc);
+            Assert.AreEqual(SlackResponseType.IN_CHANNEL, capturedResponseDoc.ResponseType);
+            Assert.AreEqual(
+                "<@" + targetUserId + "> is correct with " + answer + "!\n\n```Scores:\n\nNo scores yet...```\n\nOK, <@" +
+                targetUserId +
+                ">, you're up!",
+                capturedResponseDoc.Text
+            );
+        }
+        #endregion
+
         #region GetStatus
         [TestMethod]
         public void TestGetStatusWithNullGameState()

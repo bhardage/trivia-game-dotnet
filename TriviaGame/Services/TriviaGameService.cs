@@ -259,7 +259,88 @@ namespace TriviaGame.Services
 
         public SlackResponseDoc MarkAnswerCorrect(SlackRequestDoc requestDoc, string target, string answer)
         {
-            throw new NotImplementedException();
+            string text;
+
+            try
+            {
+                _workflowService.OnCorrectAnswerSelected(requestDoc.ChannelId, requestDoc.UserId);
+
+                if (target.Equals(NO_CORRECT_ANSWER_TARGET, StringComparison.InvariantCultureIgnoreCase))
+                {
+                    //"Change" back to the original host to reset the workflow state
+                    _workflowService.OnTurnChanged(requestDoc.ChannelId, requestDoc.UserId, requestDoc.UserId);
+
+                    if (answer == null)
+                    {
+                        text = String.Format(
+                            "It looks like no one was able to answer that one!\n\n{0}\n\nOK, <@{1}>, let's try another one!",
+                            generateScoreText(requestDoc),
+                            requestDoc.UserId
+                        );
+                    }
+                    else
+                    {
+                        text = String.Format(
+                            "It looks like no one was able to answer that one! The correct answer was {0}.\n\n{1}\n\nOK, <@{2}>, let's try another one!",
+                            answer,
+                            generateScoreText(requestDoc),
+                            requestDoc.UserId
+                        );
+                    }
+                }
+                else
+                {
+                    string userId = SlackUtils.NormalizeId(target);
+
+                    _scoreService.IncrementScore(requestDoc.ChannelId, userId);
+                    _workflowService.OnTurnChanged(requestDoc.ChannelId, requestDoc.UserId, userId);
+
+                    if (answer == null)
+                    {
+                        text = String.Format(
+                            "<@{1}> is correct!\n\n{0}\n\nOK, <@{1}>, you're up!",
+                            generateScoreText(requestDoc),
+                            userId
+                        );
+                    }
+                    else
+                    {
+                        text = String.Format(
+                            "<@{2}> is correct with {0}!\n\n{1}\n\nOK, <@{2}>, you're up!",
+                            answer,
+                            generateScoreText(requestDoc),
+                            userId
+                        );
+                    }
+                }
+            }
+            catch (GameNotStartedException)
+            {
+                return SlackResponseDoc.Failure(String.Format(GAME_NOT_STARTED_FORMAT, requestDoc.Command));
+            }
+            catch (WorkflowException e)
+            {
+                return SlackResponseDoc.Failure(e.Message);
+            }
+            catch (ScoreException)
+            {
+                SlackResponseDoc responseDoc = SlackResponseDoc.Failure("User " + target + " does not exist. Please choose a valid user.");
+                responseDoc.Attachments = new List<SlackAttachment> { new SlackAttachment("Usage: `" + requestDoc.Command + " correct @jsmith Blue skies`") };
+                return responseDoc;
+            }
+
+            SlackResponseDoc delayedResponseDoc = new SlackResponseDoc
+            {
+                ResponseType = SlackResponseType.IN_CHANNEL,
+                Text = text
+            };
+            _delayedSlackService.sendResponse(requestDoc.ResponseUrl, delayedResponseDoc);
+
+            return new SlackResponseDoc
+            {
+                ResponseType = SlackResponseType.EPHEMERAL,
+                Text = "Score updated."
+            };
         }
 
         public SlackResponseDoc GetStatus(SlackRequestDoc requestDoc)
