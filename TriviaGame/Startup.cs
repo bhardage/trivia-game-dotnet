@@ -30,6 +30,7 @@ namespace TriviaGame
             services.AddSingleton<IScoreInfoRepository, ScoreInfoRepository>();
             services.AddSingleton<IWorkflowRepository, WorkflowRepository>();
 
+            services.AddSingleton<IDelayedSlackService, DelayedSlackService>();
             services.AddSingleton<ITriviaGameDbContext, TriviaGameDbContext>();
         }
 

@@ -24,13 +24,17 @@ namespace TriviaGame.Services
         private readonly IScoreService _scoreService;
         private readonly IWorkflowService _workflowService;
 
+        private readonly IDelayedSlackService _delayedSlackService;
+
         public TriviaGameService(
             IScoreService scoreService,
-            IWorkflowService workflowService
+            IWorkflowService workflowService,
+            IDelayedSlackService delayedSlackService
         )
         {
             _scoreService = scoreService;
             _workflowService = workflowService;
+            _delayedSlackService = delayedSlackService;
         }
 
         public SlackResponseDoc Start(SlackRequestDoc requestDoc, string topic)
@@ -42,7 +46,7 @@ namespace TriviaGame.Services
             {
                 _workflowService.OnGameStarted(channelId, userId, topic);
             }
-            catch (GameNotStartedException e)
+            catch (GameNotStartedException)
             {
                 return SlackResponseDoc.Failure(String.Format(GAME_NOT_STARTED_FORMAT, requestDoc.Command));
             }
@@ -64,7 +68,7 @@ namespace TriviaGame.Services
             {
                 _workflowService.OnGameStopped(requestDoc.ChannelId, requestDoc.UserId);
             }
-            catch (GameNotStartedException e)
+            catch (GameNotStartedException)
             {
                 return SlackResponseDoc.Failure(String.Format(GAME_NOT_STARTED_FORMAT, requestDoc.Command));
             }
@@ -86,7 +90,32 @@ namespace TriviaGame.Services
 
         public SlackResponseDoc Join(SlackRequestDoc requestDoc)
         {
-            throw new NotImplementedException();
+            SlackUser user = new SlackUser(requestDoc.UserId, requestDoc.Username);
+            bool userCreated = _scoreService.CreateUserIfNotExists(requestDoc.ChannelId, user);
+
+            SlackResponseDoc responseDoc = new SlackResponseDoc
+            {
+                ResponseType = SlackResponseType.EPHEMERAL
+            };
+
+            if (userCreated)
+            {
+                responseDoc.Text = "Joining game.";
+
+                SlackResponseDoc delayedResponseDoc = new SlackResponseDoc
+                {
+                    ResponseType = SlackResponseType.IN_CHANNEL,
+                    Text = String.Format("<@{0}> has joined the game!", user.UserId)
+                };
+
+                _delayedSlackService.sendResponse(requestDoc.ResponseUrl, delayedResponseDoc);
+            }
+            else
+            {
+                responseDoc.Text = "You're already in the game.";
+            }
+
+            return responseDoc;
         }
 
         public SlackResponseDoc Pass(SlackRequestDoc requestDoc, string target)

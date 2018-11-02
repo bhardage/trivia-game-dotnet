@@ -18,12 +18,15 @@ namespace TriviaGameTests.Services
 
         private Mock<IWorkflowService> workflowService = new Mock<IWorkflowService>();
 
+        private Mock<IDelayedSlackService> delayedSlackService = new Mock<IDelayedSlackService>();
+
         [TestInitialize]
         public void Setup()
         {
             scoreService.Reset();
             workflowService.Reset();
-            cut = new TriviaGameService(scoreService.Object, workflowService.Object);
+            delayedSlackService.Reset();
+            cut = new TriviaGameService(scoreService.Object, workflowService.Object, delayedSlackService.Object);
         }
 
         #region Start
@@ -179,6 +182,107 @@ namespace TriviaGameTests.Services
 
             workflowService.Verify(x => x.OnGameStopped(channelId, userId));
         }
+        #endregion
+
+        #region Join
+        [TestMethod]
+        public void TestJoinWithExistingUser()
+        {
+            string channelId = "channel";
+            string userId = "U12345";
+            string username = "test1";
+
+            SlackRequestDoc requestDoc = new SlackRequestDoc
+            {
+                ChannelId = channelId,
+                UserId = userId,
+                Username = username
+            };
+
+            scoreService.Setup(x => x.CreateUserIfNotExists(It.IsAny<string>(), It.IsAny<SlackUser>())).Returns(false);
+
+            SlackResponseDoc responseDoc = cut.Join(requestDoc);
+
+            Assert.IsNotNull(responseDoc);
+            Assert.AreEqual(SlackResponseType.EPHEMERAL, responseDoc.ResponseType);
+            Assert.AreEqual("You're already in the game.", responseDoc.Text);
+
+            scoreService.Verify(x => x.CreateUserIfNotExists(channelId, new SlackUser(userId, username)));
+            delayedSlackService.VerifyNoOtherCalls();
+        }
+
+        [TestMethod]
+        public void TestJoinWithNewUser()
+        {
+            string channelId = "channel";
+            string userId = "U12345";
+            string username = "test1";
+            string responseUrl = "some url";
+
+            SlackRequestDoc requestDoc = new SlackRequestDoc
+            {
+                ChannelId = channelId,
+                UserId = userId,
+                Username = username,
+                ResponseUrl = responseUrl
+            };
+
+            string capturedResponseUrl = null;
+            SlackResponseDoc capturedResponseDoc = null;
+            delayedSlackService.Setup(x => x.sendResponse(It.IsAny<string>(), It.IsAny<SlackResponseDoc>()))
+                .Callback<string, SlackResponseDoc>((ru, rd) =>
+                {
+                    capturedResponseUrl = ru;
+                    capturedResponseDoc = rd;
+                });
+
+            scoreService.Setup(x => x.CreateUserIfNotExists(It.IsAny<string>(), It.IsAny<SlackUser>())).Returns(true);
+
+            SlackResponseDoc responseDoc = cut.Join(requestDoc);
+
+            Assert.IsNotNull(responseDoc);
+            Assert.AreEqual(SlackResponseType.EPHEMERAL, responseDoc.ResponseType);
+            Assert.AreEqual("Joining game.", responseDoc.Text);
+
+            scoreService.Verify(x => x.CreateUserIfNotExists(channelId, new SlackUser(userId, username)));
+            delayedSlackService.Verify(x => x.sendResponse(It.IsAny<string>(), It.IsAny<SlackResponseDoc>()));
+
+            Assert.AreEqual(responseUrl, capturedResponseUrl);
+            Assert.IsNotNull(capturedResponseDoc);
+            Assert.AreEqual(SlackResponseType.IN_CHANNEL, capturedResponseDoc.ResponseType);
+            Assert.AreEqual("<@" + userId + "> has joined the game!", capturedResponseDoc.Text);
+        }
+        /*
+        public SlackResponseDoc Join(SlackRequestDoc requestDoc)
+        {
+            SlackUser user = new SlackUser(requestDoc.UserId, requestDoc.Username);
+            bool userCreated = _scoreService.CreateUserIfNotExists(requestDoc.ChannelId, user);
+
+            SlackResponseDoc responseDoc = new SlackResponseDoc
+            {
+                ResponseType = SlackResponseType.EPHEMERAL
+            };
+
+            if (userCreated)
+            {
+                responseDoc.Text = "Joining game.";
+
+                SlackResponseDoc delayedResponseDoc = new SlackResponseDoc
+                {
+                    ResponseType = SlackResponseType.IN_CHANNEL,
+                    Text = String.Format("", user.UserId)
+                };
+
+                _delayedSlackService.sendResponse(requestDoc.ResponseUrl, delayedResponseDoc);
+            }
+            else
+            {
+                responseDoc.Text = "You're already in the game.";
+            }
+
+            return responseDoc;
+        }
+         */
         #endregion
 
         #region GetStatus
