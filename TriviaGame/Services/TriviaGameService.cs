@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using TriviaGame.Exceptions;
 using TriviaGame.Models;
+using TriviaGame.Utils;
 
 namespace TriviaGame.Services
 {
@@ -120,7 +121,42 @@ namespace TriviaGame.Services
 
         public SlackResponseDoc Pass(SlackRequestDoc requestDoc, string target)
         {
-            throw new NotImplementedException();
+            string userId = SlackUtils.NormalizeId(target);
+
+            try
+            {
+                bool userExists = _scoreService.DoesUserExist(requestDoc.ChannelId, userId);
+
+                if (!userExists)
+                {
+                    SlackResponseDoc responseDoc = SlackResponseDoc.Failure("User " + target + " does not exist. Please choose a valid user.");
+                    responseDoc.Attachments = new List<SlackAttachment> { new SlackAttachment("Usage: `" + requestDoc.Command + " pass @jsmith`") };
+                    return responseDoc;
+                }
+
+                _workflowService.OnTurnChanged(requestDoc.ChannelId, requestDoc.UserId, userId);
+            }
+            catch (GameNotStartedException)
+            {
+                return SlackResponseDoc.Failure(String.Format(GAME_NOT_STARTED_FORMAT, requestDoc.Command));
+            }
+            catch (WorkflowException e)
+            {
+                return SlackResponseDoc.Failure(e.Message);
+            }
+
+            SlackResponseDoc delayedResponseDoc = new SlackResponseDoc
+            {
+                ResponseType = SlackResponseType.IN_CHANNEL,
+                Text = String.Format("<@{0}> has decided to pass his/her turn to <@{1}>.\n\nOK, <@{1}>, it's your turn to ask a question!", requestDoc.UserId, userId)
+            };
+            _delayedSlackService.sendResponse(requestDoc.ResponseUrl, delayedResponseDoc);
+
+            return new SlackResponseDoc
+            {
+                ResponseType = SlackResponseType.EPHEMERAL,
+                Text = "Turn passed to <@" + userId + ">."
+            };
         }
 
         public SlackResponseDoc SubmitQuestion(SlackRequestDoc requestDoc, string question)
