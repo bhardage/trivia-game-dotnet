@@ -620,6 +620,104 @@ namespace TriviaGameTests.Services
         }
         #endregion
 
+        #region MarkAnswerIncorrect
+        [TestMethod]
+        public void TestMarkAnswerIncorrectWithGameNotStarted()
+        {
+            string channelId = "channel";
+            string userId = "U12345";
+            string command = "/command";
+            string targetUserId = "U12346";
+
+            SlackRequestDoc requestDoc = new SlackRequestDoc
+            {
+                ChannelId = channelId,
+                UserId = userId,
+                Command = command
+            };
+
+            workflowService.Setup(x => x.OnIncorrectAnswerSelected(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).Throws(new GameNotStartedException());
+
+            SlackResponseDoc responseDoc = cut.MarkAnswerIncorrect(requestDoc, "<@" + targetUserId + ">");
+
+            Assert.IsNotNull(responseDoc);
+            Assert.AreEqual(SlackResponseType.EPHEMERAL, responseDoc.ResponseType);
+            Assert.AreEqual("A game has not yet been started. If you'd like to start a game, try `" + command + " start`", responseDoc.Text);
+
+            workflowService.Verify(x => x.OnIncorrectAnswerSelected(channelId, userId, targetUserId));
+            delayedSlackService.VerifyNoOtherCalls();
+        }
+
+        [TestMethod]
+        public void TestMarkAnswerIncorrectWithWorkflowException()
+        {
+            string channelId = "channel";
+            string userId = "U12345";
+            string command = "/command";
+            string targetUserId = "U12346";
+            string exceptionMessage = "some message";
+
+            SlackRequestDoc requestDoc = new SlackRequestDoc
+            {
+                ChannelId = channelId,
+                UserId = userId,
+                Command = command
+            };
+
+            workflowService.Setup(x => x.OnIncorrectAnswerSelected(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).Throws(new WorkflowException(exceptionMessage));
+
+            SlackResponseDoc responseDoc = cut.MarkAnswerIncorrect(requestDoc, "<@" + targetUserId + ">");
+
+            Assert.IsNotNull(responseDoc);
+            Assert.AreEqual(SlackResponseType.EPHEMERAL, responseDoc.ResponseType);
+            Assert.AreEqual(exceptionMessage, responseDoc.Text);
+
+            workflowService.Verify(x => x.OnIncorrectAnswerSelected(channelId, userId, targetUserId));
+            delayedSlackService.VerifyNoOtherCalls();
+        }
+
+        [TestMethod]
+        public void TestMarkAnswerIncorrectSuccessfully()
+        {
+            string channelId = "channel";
+            string userId = "U12345";
+            string command = "/command";
+            string responseUrl = "some url";
+            string targetUserId = "U12346";
+
+            SlackRequestDoc requestDoc = new SlackRequestDoc
+            {
+                ChannelId = channelId,
+                UserId = userId,
+                Command = command,
+                ResponseUrl = responseUrl
+            };
+
+            string capturedResponseUrl = null;
+            SlackResponseDoc capturedResponseDoc = null;
+            delayedSlackService.Setup(x => x.sendResponse(It.IsAny<string>(), It.IsAny<SlackResponseDoc>()))
+                .Callback<string, SlackResponseDoc>((ru, rd) =>
+                {
+                    capturedResponseUrl = ru;
+                    capturedResponseDoc = rd;
+                });
+
+            SlackResponseDoc responseDoc = cut.MarkAnswerIncorrect(requestDoc, "<@" + targetUserId + ">");
+
+            Assert.IsNotNull(responseDoc);
+            Assert.AreEqual(SlackResponseType.EPHEMERAL, responseDoc.ResponseType);
+            Assert.AreEqual("Marked answer incorrect.", responseDoc.Text);
+
+            workflowService.Verify(x => x.OnIncorrectAnswerSelected(channelId, userId, targetUserId));
+            delayedSlackService.Verify(x => x.sendResponse(It.IsAny<string>(), It.IsAny<SlackResponseDoc>()));
+
+            Assert.AreEqual(responseUrl, capturedResponseUrl);
+            Assert.IsNotNull(capturedResponseDoc);
+            Assert.AreEqual(SlackResponseType.IN_CHANNEL, capturedResponseDoc.ResponseType);
+            Assert.AreEqual("You couldn't be more wrong, <@" + targetUserId + ">", capturedResponseDoc.Text);
+        }
+        #endregion
+
         #region GetStatus
         [TestMethod]
         public void TestGetStatusWithNullGameState()

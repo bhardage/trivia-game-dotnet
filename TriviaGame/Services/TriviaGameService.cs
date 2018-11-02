@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using TriviaGame.Exceptions;
 using TriviaGame.Models;
 using TriviaGame.Utils;
@@ -229,7 +228,33 @@ namespace TriviaGame.Services
 
         public SlackResponseDoc MarkAnswerIncorrect(SlackRequestDoc requestDoc, string target)
         {
-            throw new NotImplementedException();
+            string userId = SlackUtils.NormalizeId(target);
+
+            try
+            {
+                _workflowService.OnIncorrectAnswerSelected(requestDoc.ChannelId, requestDoc.UserId, userId);
+            }
+            catch (GameNotStartedException e)
+            {
+                return SlackResponseDoc.Failure(String.Format(GAME_NOT_STARTED_FORMAT, requestDoc.Command));
+            }
+            catch (WorkflowException e)
+            {
+                return SlackResponseDoc.Failure(e.Message);
+            }
+
+            SlackResponseDoc delayedResponseDoc = new SlackResponseDoc
+            {
+                ResponseType = SlackResponseType.IN_CHANNEL,
+                Text = String.Format("You couldn't be more wrong, <@{0}>", userId)
+            };
+            _delayedSlackService.sendResponse(requestDoc.ResponseUrl, delayedResponseDoc);
+
+            return new SlackResponseDoc
+            {
+                ResponseType = SlackResponseType.EPHEMERAL,
+                Text = "Marked answer incorrect."
+            };
         }
 
         public SlackResponseDoc MarkAnswerCorrect(SlackRequestDoc requestDoc, string target, string answer)
