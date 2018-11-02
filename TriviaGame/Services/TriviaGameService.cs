@@ -165,7 +165,7 @@ namespace TriviaGame.Services
             {
                 _workflowService.OnQuestionSubmitted(requestDoc.ChannelId, requestDoc.UserId, question);
             }
-            catch (GameNotStartedException e)
+            catch (GameNotStartedException)
             {
                 return SlackResponseDoc.Failure(String.Format(GAME_NOT_STARTED_FORMAT, requestDoc.Command));
             }
@@ -190,7 +190,41 @@ namespace TriviaGame.Services
 
         public SlackResponseDoc SubmitAnswer(SlackRequestDoc requestDoc, string answer)
         {
-            throw new NotImplementedException();
+            try
+            {
+                _workflowService.OnAnswerSubmitted(
+                    requestDoc.ChannelId,
+                    requestDoc.UserId,
+                    requestDoc.Username,
+                    answer,
+                    requestDoc.RequestTime
+                );
+            }
+            catch (GameNotStartedException)
+            {
+                return SlackResponseDoc.Failure(String.Format(GAME_NOT_STARTED_FORMAT, requestDoc.Command));
+            }
+            catch (WorkflowException e)
+            {
+                return SlackResponseDoc.Failure(e.Message);
+            }
+
+            SlackUser user = new SlackUser(requestDoc.UserId, requestDoc.Username);
+            _scoreService.CreateUserIfNotExists(requestDoc.ChannelId, user);
+
+            SlackResponseDoc delayedResponseDoc = new SlackResponseDoc
+            {
+                ResponseType = SlackResponseType.IN_CHANNEL,
+                Text = String.Format("<@{0}> answers:", requestDoc.UserId),
+                Attachments = new List<SlackAttachment> { new SlackAttachment(answer, false) }
+            };
+            _delayedSlackService.sendResponse(requestDoc.ResponseUrl, delayedResponseDoc);
+
+            return new SlackResponseDoc
+            {
+                ResponseType = SlackResponseType.EPHEMERAL,
+                Text = "Answer submitted."
+            };
         }
 
         public SlackResponseDoc MarkAnswerIncorrect(SlackRequestDoc requestDoc, string target)
